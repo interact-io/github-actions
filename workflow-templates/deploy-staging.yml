@@ -1,0 +1,43 @@
+name: Deploy image to staging cluster
+on:
+  workflow_call:
+    inputs:
+      namespace:
+        required: true
+        type: string
+      applicationName:
+        required: true
+        type: string
+      ymlFileName:
+        required: true
+        type: string
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Describe release
+      id: ghd
+      uses: proudust/gh-describe@v1.5.1
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: eu-west-1
+    - name: Override release version in kube config
+      env: 
+        IMAGE_TAG:  ${{ steps.ghd.outputs.describe }}
+      run: |
+        sed -i -e "s/\$IMAGE_TAG/$IMAGE_TAG/g" ${{ inputs.ymlFileName }}
+    - name: Deploy image to Kubernetes cluster
+      uses: ianbelcher/eks-kubectl-action@master
+      with:
+          cluster_name: staging
+          args: apply -f ${{ inputs.ymlFileName }}
+    - name: Monitor rollout
+      uses: ianbelcher/eks-kubectl-action@master
+      with:
+          cluster_name: staging
+          args: rollout status deployment/${{ inputs.applicationName }} -n ${{ inputs.namespace }} --timeout 30s
