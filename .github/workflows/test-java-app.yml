@@ -1,4 +1,4 @@
-name: Build Java App and push docker image
+name: Test Java App and upload coverage
 on:
   workflow_call:
 jobs:
