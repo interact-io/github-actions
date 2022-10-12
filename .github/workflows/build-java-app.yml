@@ -28,6 +28,12 @@ jobs:
       run: |
         echo ${{ steps.ghd.outputs.describe }} > app/src/main/resources/versionnumber.txt
         ./gradlew clean test shadow
+    - name: Upload coverage to Codecov  
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./app/build/reports/jacoco/test/jacocoTestReport.xml
+        flags: unittests 
     - name: Configure Amazon credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
