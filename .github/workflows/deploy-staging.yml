@@ -40,4 +40,4 @@ jobs:
       uses: ianbelcher/eks-kubectl-action@master
       with:
           cluster_name: staging
-          args: rollout status deployment/${{ inputs.applicationName }} -n ${{ inputs.namespace }} --timeout 60s
+          args: rollout status deployment/${{ inputs.applicationName }} -n ${{ inputs.namespace }} --timeout 90s
