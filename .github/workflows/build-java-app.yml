@@ -16,7 +16,7 @@ jobs:
         ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
     - name: Describe release
       id: ghd
-      uses: proudust/gh-describe@v1.5.4
+      uses: plevie/gh-describe@master
     - name: Cache
       uses: actions/cache@v1
       with:
