@@ -209,7 +209,7 @@ jobs:
 
           build_and_push() {
             echo "BUILD+PUSH $service -> $ECR_REGISTRY/$repo:$tag_new"
-            echo $VERSION_NAME > $dir/src/main/resources/versionnumber.txt
+            echo "$VERSION_NAME" > "$dir/src/main/resources/versionnumber.txt"
             ./gradlew "${gradlePath}:shadowJar"
 
             docker build \
