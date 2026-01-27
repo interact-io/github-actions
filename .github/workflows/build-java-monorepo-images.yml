@@ -129,8 +129,14 @@ jobs:
       - name: Output matrix
         id: out
         run: |
-          echo "matrix_json=$(cat build/services-matrix.json)" >> "$GITHUB_OUTPUT"
-          echo "platform_sha=$(git rev-parse HEAD:platform 2>/dev/null || git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "matrix_json=$(jq -c . build/services-matrix.json)" >> "$GITHUB_OUTPUT"
+          
+          # Get platform submodule SHA if exists, otherwise use HEAD
+          if PLATFORM_SHA=$(git rev-parse HEAD:platform 2>/dev/null); then
+            echo "platform_sha=$PLATFORM_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "platform_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          fi
 
   build_or_retag:
     name: ${{ matrix.item.service }}
