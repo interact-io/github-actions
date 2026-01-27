@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Setup Java with Gradle
-      uses: ./actions/setup-java-gradle
+      uses: interact-io/github-actions/actions/setup-java-gradle@monorepo-reusable-flows
       with:
         submodules: 'true'
         ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
