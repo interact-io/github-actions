@@ -13,8 +13,7 @@ jobs:
     - name: Run Spotless check
       run: ./gradlew spotlessJavaCheck
     - name: Build Java App
-      run: |
-        ./gradlew clean test build shadowJar
+      run: ./gradlew test build shadowJar
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
       with:
