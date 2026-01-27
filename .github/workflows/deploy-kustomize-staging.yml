@@ -76,13 +76,13 @@ jobs:
           echo "✅ Manifest validation passed"
 
       - name: Apply manifest to cluster
-        uses: ianbelcher/eks-kubectl-action@master
+        uses: ianbelcher/eks-kubectl-action@8378b68
         with:
           cluster_name: ${{ inputs.cluster_name }}
           args: apply -f manifest.yaml
 
       - name: Wait for deployment rollout
-        uses: ianbelcher/eks-kubectl-action@master
+        uses: ianbelcher/eks-kubectl-action@8378b68
         with:
           cluster_name: ${{ inputs.cluster_name }}
           args: >-
