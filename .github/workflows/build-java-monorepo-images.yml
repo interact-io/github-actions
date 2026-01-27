@@ -122,7 +122,6 @@ jobs:
           else
             git ls-files > changed-files.txt
           fi
-
       - name: Discover services
         run: ./gradlew serviceMatrixJson -PchangedFilesFile=changed-files.txt
 
@@ -137,6 +136,17 @@ jobs:
           else
             echo "platform_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Run checks on affected services
+        run: |
+          if [[ ! -s build/affected-services.txt ]]; then
+            echo "No affected services, skipping checks"
+            exit 0
+          fi
+          
+          TASKS=$(sed 's/$/:check/' build/affected-services.txt | tr '\n' ' ')
+          echo "Running: ./gradlew $TASKS"
+          ./gradlew $TASKS
 
   build_or_retag:
     name: ${{ matrix.item.service }}
