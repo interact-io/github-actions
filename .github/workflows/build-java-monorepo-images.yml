@@ -50,7 +50,7 @@ jobs:
       platform_sha: ${{ steps.out.outputs.platform_sha }}
     steps:
       - name: Setup Java with Gradle
-        uses: interact-io/github-actions/actions/setup-java-gradle@monorepo-reusable-flows
+        uses: interact-io/github-actions/actions/setup-java-gradle@master
         with:
           submodules: 'true'
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -159,14 +159,14 @@ jobs:
         item: ${{ fromJson(needs.build-matrix.outputs.matrix_json) }}
     steps:
       - name: Setup Java with Gradle
-        uses: interact-io/github-actions/actions/setup-java-gradle@monorepo-reusable-flows
+        uses: interact-io/github-actions/actions/setup-java-gradle@master
         with:
           submodules: 'true'
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Login to ECR
         id: ecr
-        uses: interact-io/github-actions/actions/aws-ecr-login@monorepo-reusable-flows
+        uses: interact-io/github-actions/actions/aws-ecr-login@master
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
