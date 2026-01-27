@@ -1,0 +1,244 @@
+name: Build Java Monorepo Docker Images
+
+on:
+  workflow_call:
+    inputs:
+      base_sha:
+        description: 'Override base SHA (for manual builds)'
+        required: false
+        type: string
+      head_sha:
+        description: 'Override head SHA (for manual builds)'
+        required: false
+        type: string
+      main_branch:
+        description: 'Main branch name for SHA comparison'
+        required: false
+        type: string
+        default: 'main'
+      aws_region:
+        description: 'AWS Region'
+        required: false
+        type: string
+        default: 'eu-west-1'
+    outputs:
+      old_sha:
+        description: 'Base SHA used for comparison'
+        value: ${{ jobs.build-matrix.outputs.old_sha }}
+      new_sha:
+        description: 'Head SHA used for comparison'
+        value: ${{ jobs.build-matrix.outputs.new_sha }}
+      matrix_json:
+        description: 'JSON matrix of services to build'
+        value: ${{ jobs.build-matrix.outputs.matrix_json }}
+      version_name:
+        description: 'Version tag from git describe'
+        value: ${{ jobs.build-matrix.outputs.version_name }}
+      platform_sha:
+        description: 'SHA of the platform submodule'
+        value: ${{ jobs.build-matrix.outputs.platform_sha }}
+
+jobs:
+  build-matrix:
+    name: Discover services
+    runs-on: ubuntu-latest
+    outputs:
+      old_sha: ${{ steps.shas.outputs.base }}
+      new_sha: ${{ steps.shas.outputs.head }}
+      matrix_json: ${{ steps.out.outputs.matrix_json }}
+      version_name: ${{ steps.version.outputs.tag }}
+      platform_sha: ${{ steps.out.outputs.platform_sha }}
+    steps:
+      - name: Setup Java with Gradle
+        uses: interact-io/github-actions/actions/setup-java-gradle@master
+        with:
+          submodules: 'true'
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Check for manual SHA override
+        id: check-override
+        env:
+          BASE_SHA_INPUT: ${{ inputs.base_sha }}
+        run: |
+          if [[ -n "$BASE_SHA_INPUT" ]]; then
+            echo "skip_nx=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_nx=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set SHAs (branch build)
+        id: nx-set-shas
+        if: ${{ !startsWith(github.ref, 'refs/tags/') && steps.check-override.outputs.skip_nx != 'true' }}
+        uses: nrwl/nx-set-shas@v4
+        continue-on-error: true
+        with:
+          main-branch-name: ${{ inputs.main_branch }}
+          workflow-id: ${{ github.workflow }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get Previous Release
+        id: previous-release
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: sammcoe/get-previous-release-action@v1.0.3
+
+      - name: Resolve SHAs
+        id: shas
+        env:
+          NX_BASE: ${{ steps.nx-set-shas.outputs.base }}
+          NX_HEAD: ${{ steps.nx-set-shas.outputs.head }}
+          RELEASE_REV: ${{ steps.previous-release.outputs.rev }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+          CURRENT_SHA: ${{ github.sha }}
+          BASE_SHA_INPUT: ${{ inputs.base_sha }}
+          HEAD_SHA_INPUT: ${{ inputs.head_sha }}
+        run: |
+          if [[ -n "$BASE_SHA_INPUT" ]]; then
+            BASE="$BASE_SHA_INPUT"
+            HEAD="${HEAD_SHA_INPUT:-$CURRENT_SHA}"
+          elif [[ "$IS_TAG" == "true" ]]; then
+            BASE="$RELEASE_REV"
+            HEAD="$CURRENT_SHA"
+          else
+            BASE="$NX_BASE"
+            HEAD="$NX_HEAD"
+          fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+          echo "head=${HEAD:-$CURRENT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Get version tag
+        id: version
+        run: |
+          TAG=$(git describe --tags 2>/dev/null || echo "v0.0.0")
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Compute changed files
+        env:
+          BASE_SHA: ${{ steps.shas.outputs.base }}
+          HEAD_SHA: ${{ steps.shas.outputs.head }}
+        run: |
+          if [[ -n "$BASE_SHA" ]]; then
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed-files.txt
+          else
+            git ls-files > changed-files.txt
+          fi
+      - name: Discover services
+        run: ./gradlew serviceMatrixJson -PchangedFilesFile=changed-files.txt
+
+      - name: Output matrix
+        id: out
+        run: |
+          echo "matrix_json=$(jq -c . build/services-matrix.json)" >> "$GITHUB_OUTPUT"
+          
+          # Get platform submodule SHA if exists, otherwise use HEAD
+          if PLATFORM_SHA=$(git rev-parse HEAD:platform 2>/dev/null); then
+            echo "platform_sha=$PLATFORM_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "platform_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run checks on affected services
+        run: |
+          if [[ ! -s build/affected-services.txt ]]; then
+            echo "No affected services, skipping checks"
+            exit 0
+          fi
+          
+          TASKS=$(sed 's/$/:check/' build/affected-services.txt | tr '\n' ' ')
+          echo "Running: ./gradlew $TASKS"
+          ./gradlew $TASKS
+
+  build_or_retag:
+    name: ${{ matrix.item.service }}
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.matrix_json != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        item: ${{ fromJson(needs.build-matrix.outputs.matrix_json) }}
+    steps:
+      - name: Setup Java with Gradle
+        uses: interact-io/github-actions/actions/setup-java-gradle@master
+        with:
+          submodules: 'true'
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Login to ECR
+        id: ecr
+        uses: interact-io/github-actions/actions/aws-ecr-login@master
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Build or Re-Tag image
+        env:
+          ITEM: ${{ toJson(matrix.item) }}
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          AWS_REGION: ${{ inputs.aws_region }}
+          OLD_SHA: ${{ needs.build-matrix.outputs.old_sha }}
+          NEW_SHA: ${{ needs.build-matrix.outputs.new_sha }}
+          VERSION_NAME: ${{ needs.build-matrix.outputs.version_name }}
+          DOCKER_BUILDKIT: 1
+          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
+        run: |
+          set -euo pipefail
+
+          service="$(jq -r '.service' <<<"$ITEM")"
+          gradlePath="$(jq -r '.gradlePath' <<<"$ITEM")"
+          dir="$(jq -r '.dir' <<<"$ITEM")"
+          dockerfile="$(jq -r '.dockerfile' <<<"$ITEM")"
+          repo="$(jq -r '.repo' <<<"$ITEM")"
+          affected="$(jq -r '.affected' <<<"$ITEM")"
+
+          tag_old="sha-${OLD_SHA}"
+          tag_new="sha-${NEW_SHA}"
+
+          retag() {
+            manifest="$(aws ecr batch-get-image \
+              --region "$AWS_REGION" \
+              --repository-name "$repo" \
+              --image-ids imageTag="$tag_old" \
+              --accepted-media-types \
+                application/vnd.oci.image.index.v1+json \
+                application/vnd.docker.distribution.manifest.list.v2+json \
+                application/vnd.oci.image.manifest.v1+json \
+                application/vnd.docker.distribution.manifest.v2+json \
+              --query 'images[0].imageManifest' \
+              --output text 2>/dev/null || true)"
+
+            [[ -z "$manifest" || "$manifest" == "None" ]] && return 1
+
+            aws ecr put-image \
+              --region "$AWS_REGION" \
+              --repository-name "$repo" \
+              --image-tag "$tag_new" \
+              --image-manifest "$manifest" >/dev/null
+          }
+
+          build_and_push() {
+            echo "BUILD+PUSH $service -> $ECR_REGISTRY/$repo:$tag_new"
+            echo "$VERSION_NAME" > "$dir/src/main/resources/versionnumber.txt"
+            ./gradlew "${gradlePath}:shadowJar"
+
+            docker build \
+              -f "$dir/$dockerfile" \
+              -t "$ECR_REGISTRY/$repo:$tag_new" \
+              -t "$ECR_REGISTRY/$repo:$VERSION_NAME" \
+              "$dir"
+
+            docker push --all-tags "$ECR_REGISTRY/$repo"
+          }
+
+          if [[ "$affected" == "true" ]]; then
+            build_and_push
+          else
+            echo "TRY RETAG $service ($repo): $tag_old -> $tag_new"
+            if retag; then
+              echo "RETAG OK"
+            else
+              echo "RETAG FAILED -> BUILD"
+              build_and_push
+            fi
+          fi

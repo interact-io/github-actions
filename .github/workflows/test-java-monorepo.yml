@@ -5,23 +5,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+    - name: Setup Java with Gradle
+      uses: interact-io/github-actions/actions/setup-java-gradle@master
       with:
-        submodules: recursive
+        submodules: 'true'
         ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
-    - name: Cache
-      uses: actions/cache@v4
-      with:
-        path: ~/.gradle/caches
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: 21
     - name: Run Spotless check
       run: ./gradlew spotlessJavaCheck
     - name: Run Unit-Tests

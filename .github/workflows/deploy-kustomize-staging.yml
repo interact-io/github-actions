@@ -1,0 +1,90 @@
+name: Deploy with Kustomize to Staging
+
+on:
+  workflow_call:
+    inputs:
+      applications:
+        description: 'JSON array of applications to deploy'
+        required: true
+        type: string
+      platform_sha:
+        description: 'Platform SHA for image tags'
+        required: true
+        type: string
+      version_name:
+        description: 'Version name for image tags'
+        required: true
+        type: string
+      cluster_name:
+        description: 'EKS cluster name'
+        required: false
+        type: string
+        default: 'staging'
+      aws_region:
+        description: 'AWS Region'
+        required: false
+        type: string
+        default: 'eu-west-1'
+      rollout_timeout:
+        description: 'Timeout for deployment rollout'
+        required: false
+        type: string
+        default: '90s'
+
+jobs:
+  deploy:
+    name: ${{ matrix.applicationName }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(inputs.applications) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Build and validate manifest
+        env:
+          PLATFORM_SHA: ${{ inputs.platform_sha }}
+          IMAGE_TAG: ${{ inputs.version_name }}
+        run: |
+          # Build manifest with kustomize
+          kubectl kustomize ${{ matrix.kustomizeDir }} > manifest.yaml
+          
+          # Inject SHA and version (kustomize can't resolve shell variables)
+          sed -i "s/\${PLATFORM_SHA}/$PLATFORM_SHA/g" manifest.yaml
+          sed -i "s/\$IMAGE_TAG/$IMAGE_TAG/g" manifest.yaml
+          
+          # Validate: Check for MUST_BE_OVERRIDDEN placeholders
+          if grep -q 'MUST_BE_OVERRIDDEN' manifest.yaml; then
+            echo "❌ ERROR: Found unconfigured variables that must be overridden:"
+            grep -B1 'MUST_BE_OVERRIDDEN' manifest.yaml
+            exit 1
+          fi
+          
+          echo "✅ Manifest validation passed"
+
+      - name: Apply manifest to cluster
+        uses: ianbelcher/eks-kubectl-action@8378b68
+        with:
+          cluster_name: ${{ inputs.cluster_name }}
+          args: apply -f manifest.yaml
+
+      - name: Wait for deployment rollout
+        uses: ianbelcher/eks-kubectl-action@8378b68
+        with:
+          cluster_name: ${{ inputs.cluster_name }}
+          args: >-
+            rollout status deployment/${{ matrix.applicationName }}
+            -n ${{ matrix.namespace }} --timeout ${{ inputs.rollout_timeout }}
