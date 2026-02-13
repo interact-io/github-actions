@@ -1,0 +1,82 @@
+name: "Setup iOS Signing"
+description: "Decode Apple certificate, provisioning profile, and optionally App Store Connect API key; install into a temporary keychain"
+
+inputs:
+  certificate-base64:
+    description: "Base64-encoded .p12 distribution certificate"
+    required: true
+  certificate-password:
+    description: "Password for the .p12 certificate"
+    required: true
+  provisioning-profile-base64:
+    description: "Base64-encoded .mobileprovision file"
+    required: true
+  keychain-password:
+    description: "Password for the temporary keychain"
+    required: true
+  appstore-connect-api-key-base64:
+    description: "Base64-encoded .p8 App Store Connect API key"
+    required: false
+    default: ""
+  appstore-connect-api-key-path:
+    description: "Destination path for the decoded API key"
+    required: false
+    default: "./ios/fastlane/appstore_connect_api_key.p8"
+
+outputs:
+  keychain-path:
+    description: "Path to the created temporary keychain (for cleanup)"
+    value: ${{ steps.setup-keychain.outputs.keychain-path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Decode Apple certificate
+      id: decode-certificate
+      uses: timheuer/base64-to-file@v1
+      with:
+        fileName: "build_certificate.p12"
+        encodedString: ${{ inputs.certificate-base64 }}
+
+    - name: Decode provisioning profile
+      id: decode-provisioning-profile
+      uses: timheuer/base64-to-file@v1
+      with:
+        fileName: "build_pp.mobileprovision"
+        encodedString: ${{ inputs.provisioning-profile-base64 }}
+
+    - name: Decode App Store Connect API key
+      if: ${{ inputs.appstore-connect-api-key-base64 != '' }}
+      shell: bash
+      env:
+        API_KEY_BASE64: ${{ inputs.appstore-connect-api-key-base64 }}
+        API_KEY_PATH: ${{ inputs.appstore-connect-api-key-path }}
+      run: |
+        mkdir -p "$(dirname "$API_KEY_PATH")"
+        echo "$API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
+
+    - name: Install certificate and provisioning profile
+      id: setup-keychain
+      shell: bash
+      env:
+        CERTIFICATE_PATH: ${{ steps.decode-certificate.outputs.filePath }}
+        PROVISIONING_PATH: ${{ steps.decode-provisioning-profile.outputs.filePath }}
+        CERT_PASSWORD: ${{ inputs.certificate-password }}
+        KEYCHAIN_PASSWORD: ${{ inputs.keychain-password }}
+      run: |
+        # Create temporary keychain
+        keychain_path="$RUNNER_TEMP/app-signing.keychain-db"
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+        security set-keychain-settings -lut 21600 "$keychain_path"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$keychain_path"
+
+        # Import certificate to keychain
+        security import "$CERTIFICATE_PATH" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+        security list-keychain -d user -s "$keychain_path"
+
+        # Install provisioning profile
+        mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+        cp "$PROVISIONING_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+
+        # Set output
+        echo "keychain-path=$keychain_path" >> "$GITHUB_OUTPUT"

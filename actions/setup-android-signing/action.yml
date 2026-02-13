@@ -1,0 +1,43 @@
+name: "Setup Android Signing"
+description: "Decode keystore, keystore properties, and optionally a PlayStore API key from base64 secrets"
+
+inputs:
+  keystore-base64:
+    description: "Base64-encoded .jks keystore"
+    required: true
+  keystore-properties-base64:
+    description: "Base64-encoded keystore.properties"
+    required: true
+  playstore-api-key-base64:
+    description: "Base64-encoded PlayStore service account key"
+    required: false
+    default: ""
+  playstore-key-filename:
+    description: "Filename for the decoded PlayStore key"
+    required: false
+    default: "playstore-key.json"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Decode keystore
+      uses: timheuer/base64-to-file@v1
+      with:
+        fileName: "keystore.jks"
+        fileDir: "./android/.keystore"
+        encodedString: ${{ inputs.keystore-base64 }}
+
+    - name: Decode keystore properties
+      uses: timheuer/base64-to-file@v1
+      with:
+        fileName: "keystore.properties"
+        fileDir: "./android/.keystore"
+        encodedString: ${{ inputs.keystore-properties-base64 }}
+
+    - name: Decode PlayStore API key
+      if: ${{ inputs.playstore-api-key-base64 != '' }}
+      uses: timheuer/base64-to-file@v1
+      with:
+        fileName: ${{ inputs.playstore-key-filename }}
+        fileDir: "./android"
+        encodedString: ${{ inputs.playstore-api-key-base64 }}
