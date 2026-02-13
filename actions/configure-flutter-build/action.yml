@@ -1,0 +1,23 @@
+name: "Configure Flutter Build"
+description: "Generate a configuration JSON file for --dart-define-from-file"
+
+inputs:
+  configuration-file-path:
+    description: "Output path for the JSON configuration file"
+    required: true
+  configuration-json:
+    description: "The full JSON string of configuration values"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Write configuration file
+      shell: bash
+      env:
+        CONFIG_PATH: ${{ inputs.configuration-file-path }}
+        CONFIG_JSON: ${{ inputs.configuration-json }}
+      run: |
+        rm -f "$CONFIG_PATH"
+        mkdir -p "$(dirname "$CONFIG_PATH")"
+        printf '%s\n' "$CONFIG_JSON" > "$CONFIG_PATH"
