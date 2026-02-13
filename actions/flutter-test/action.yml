@@ -1,0 +1,40 @@
+name: "Flutter Test"
+description: "Run the standard Flutter lint and test suite: format, analyze, test"
+
+inputs:
+  format-line-length:
+    description: "Line length for dart format -l"
+    required: false
+    default: "120"
+  format-l10n-dir:
+    description: "Directory to format before checking (generated l10n files)"
+    required: false
+    default: "lib/l10n/"
+  analyze-fatal-infos:
+    description: "Pass --no-fatal-infos when false"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Format generated l10n files
+      shell: bash
+      run: dart format -l ${{ inputs.format-line-length }} ${{ inputs.format-l10n-dir }}
+
+    - name: Check code formatting
+      shell: bash
+      run: dart format -l ${{ inputs.format-line-length }} --set-exit-if-changed .
+
+    - name: Analyze
+      shell: bash
+      run: |
+        if [ "${{ inputs.analyze-fatal-infos }}" = "false" ]; then
+          flutter analyze --no-fatal-infos
+        else
+          flutter analyze
+        fi
+
+    - name: Run tests
+      shell: bash
+      run: flutter test
