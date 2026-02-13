@@ -38,14 +38,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup Flutter
-        uses: interact-io/github-actions/actions/setup-flutter@master
+        uses: interact-io/github-actions/actions/setup-flutter@extractFlutterRepoActions
         with:
           flutter-version: ${{ inputs.flutter-version }}
           flutter-channel: ${{ inputs.flutter-channel }}
           ssh-private-key: ${{ secrets.ssh-private-key }}
 
       - name: Run tests
-        uses: interact-io/github-actions/actions/flutter-test@master
+        uses: interact-io/github-actions/actions/flutter-test@extractFlutterRepoActions
         with:
           format-line-length: ${{ inputs.format-line-length }}
           format-l10n-dir: ${{ inputs.format-l10n-dir }}
