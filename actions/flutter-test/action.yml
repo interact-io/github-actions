@@ -20,7 +20,12 @@ runs:
   steps:
     - name: Format generated l10n files
       shell: bash
-      run: dart format -l ${{ inputs.format-line-length }} ${{ inputs.format-l10n-dir }}
+      run: |
+        if [ ! -d "${{ inputs.format-l10n-dir }}" ]; then
+          echo "::error::Directory '${{ inputs.format-l10n-dir }}' does not exist. Either create it or override the 'format-l10n-dir' input."
+          exit 1
+        fi
+        dart format -l ${{ inputs.format-line-length }} ${{ inputs.format-l10n-dir }}
 
     - name: Check code formatting
       shell: bash
