@@ -38,14 +38,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Setup Flutter
-        uses: ./actions/setup-flutter
+        uses: ./.github/actions/setup-flutter
         with:
           flutter-version: ${{ inputs.flutter-version }}
           flutter-channel: ${{ inputs.flutter-channel }}
           ssh-private-key: ${{ secrets.ssh-private-key }}
 
       - name: Run tests
-        uses: ./actions/flutter-test
+        uses: ./.github/actions/flutter-test
         with:
           format-line-length: ${{ inputs.format-line-length }}
           format-l10n-dir: ${{ inputs.format-l10n-dir }}
