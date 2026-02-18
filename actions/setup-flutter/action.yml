@@ -14,7 +14,7 @@ inputs:
     description: "SSH private key(s) for private package access"
     required: true
   enable-pub-cache:
-    description: "Cache ~/.pub-cache and .dart_tool"
+    description: "Cache ~/.pub-cache"
     required: false
     default: "true"
 
@@ -44,7 +44,6 @@ runs:
       with:
         path: |
           ~/.pub-cache
-          .dart_tool
         key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
         restore-keys: |
           ${{ runner.os }}-pub-
