@@ -1,0 +1,52 @@
+name: Flutter Test
+on:
+  workflow_call:
+    inputs:
+      flutter-version:
+        description: "Flutter SDK version"
+        type: string
+        required: false
+        default: "3.35.0"
+      flutter-channel:
+        description: "Flutter release channel"
+        type: string
+        required: false
+        default: "stable"
+      format-line-length:
+        description: "Line length for dart format"
+        type: string
+        required: false
+        default: "120"
+      format-l10n-dir:
+        description: "Directory to format before checking (generated l10n files)"
+        type: string
+        required: false
+        default: "lib/l10n/"
+      analyze-fatal-infos:
+        description: "Treat info-level issues as fatal"
+        type: boolean
+        required: false
+        default: false
+    secrets:
+      ssh-private-key:
+        description: "SSH private key(s) for private package access"
+        required: true
+
+jobs:
+  test:
+    name: "Lint & Test"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Flutter
+        uses: ./actions/setup-flutter
+        with:
+          flutter-version: ${{ inputs.flutter-version }}
+          flutter-channel: ${{ inputs.flutter-channel }}
+          ssh-private-key: ${{ secrets.ssh-private-key }}
+
+      - name: Run tests
+        uses: ./actions/flutter-test
+        with:
+          format-line-length: ${{ inputs.format-line-length }}
+          format-l10n-dir: ${{ inputs.format-l10n-dir }}
+          analyze-fatal-infos: ${{ inputs.analyze-fatal-infos }}
