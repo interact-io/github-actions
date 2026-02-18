@@ -44,9 +44,9 @@ runs:
       with:
         path: |
           ~/.pub-cache
-        key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+        key: ${{ runner.os }}-pub-${{ inputs.flutter-version }}-${{ hashFiles('**/pubspec.lock') }}
         restore-keys: |
-          ${{ runner.os }}-pub-
+          ${{ runner.os }}-pub-${{ inputs.flutter-version }}-
 
     - name: Install packages
       shell: bash
