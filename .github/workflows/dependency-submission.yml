@@ -1,0 +1,14 @@
+name: Dependency Submission
+on:
+  workflow_call:
+jobs:
+  dependency-submission:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Setup Java with Gradle
+      uses: interact-io/github-actions/actions/setup-java-gradle@master
+      with:
+        submodules: 'true'
+        ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+    - name: Generate and submit dependency graph
+      uses: gradle/actions/dependency-submission@v6
