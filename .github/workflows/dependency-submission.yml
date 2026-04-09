@@ -1,6 +1,8 @@
 name: Dependency Submission
 on:
   workflow_call:
+permissions:
+  contents: write
 jobs:
   dependency-submission:
     runs-on: ubuntu-latest
