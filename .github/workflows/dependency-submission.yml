@@ -1,6 +1,10 @@
 name: Dependency Submission
 on:
   workflow_call:
+    secrets:
+      ssh_private_key:
+        required: true
+
 permissions:
   contents: write
 jobs:
@@ -11,6 +15,6 @@ jobs:
       uses: interact-io/github-actions/actions/setup-java-gradle@master
       with:
         submodules: 'true'
-        ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        ssh-key: ${{ secrets.ssh_private_key }}
     - name: Generate and submit dependency graph
       uses: gradle/actions/dependency-submission@v6
