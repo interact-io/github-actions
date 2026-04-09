@@ -33,7 +33,7 @@ jobs:
         echo ${{ steps.ghd.outputs.describe }} > app/src/main/resources/versionnumber.txt
         ./gradlew clean test shadow
     - name: Upload coverage to Codecov  
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v6
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./app/build/reports/jacoco/test/jacocoTestReport.xml
