@@ -1,8 +1,10 @@
 version: 2
 updates:
-  # GitHub Actions
+  # GitHub Actions (workflows + reusable composite actions)
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/actions/*"
     schedule:
       interval: "weekly"
       day: "monday"
