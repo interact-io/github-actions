@@ -33,14 +33,14 @@ runs:
   steps:
     - name: Decode Apple certificate
       id: decode-certificate
-      uses: timheuer/base64-to-file@v1
+      uses: timheuer/base64-to-file@v2
       with:
         fileName: "build_certificate.p12"
         encodedString: ${{ inputs.certificate-base64 }}
 
     - name: Decode provisioning profile
       id: decode-provisioning-profile
-      uses: timheuer/base64-to-file@v1
+      uses: timheuer/base64-to-file@v2
       with:
         fileName: "build_pp.mobileprovision"
         encodedString: ${{ inputs.provisioning-profile-base64 }}
