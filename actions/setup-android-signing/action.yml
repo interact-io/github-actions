@@ -21,14 +21,14 @@ runs:
   using: "composite"
   steps:
     - name: Decode keystore
-      uses: timheuer/base64-to-file@v1
+      uses: timheuer/base64-to-file@v2
       with:
         fileName: "keystore.jks"
         fileDir: "./android/.keystore"
         encodedString: ${{ inputs.keystore-base64 }}
 
     - name: Decode keystore properties
-      uses: timheuer/base64-to-file@v1
+      uses: timheuer/base64-to-file@v2
       with:
         fileName: "keystore.properties"
         fileDir: "./android/.keystore"
@@ -36,7 +36,7 @@ runs:
 
     - name: Decode PlayStore API key
       if: ${{ inputs.playstore-api-key-base64 != '' }}
-      uses: timheuer/base64-to-file@v1
+      uses: timheuer/base64-to-file@v2
       with:
         fileName: ${{ inputs.playstore-key-filename }}
         fileDir: "./android"
