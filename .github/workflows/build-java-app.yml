@@ -28,6 +28,8 @@ jobs:
       uses: actions/setup-java@v5
       with:
         java-version: 11
+        distribution: 'temurin'
+        cache: 'gradle'
     - name: Build Java App
       run: |
         echo ${{ steps.ghd.outputs.describe }} > app/src/main/resources/versionnumber.txt
