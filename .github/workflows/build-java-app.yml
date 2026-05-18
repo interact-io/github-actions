@@ -17,17 +17,12 @@ jobs:
     - name: Describe release
       id: ghd
       uses: plevie/gh-describe@master
-    - name: Cache
-      uses: actions/cache@v5
-      with:
-        path: ~/.gradle/caches
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
     - name: Set up JDK 11
       uses: actions/setup-java@v5
       with:
         java-version: 11
+        distribution: 'temurin'
+        cache: 'gradle'
     - name: Build Java App
       run: |
         echo ${{ steps.ghd.outputs.describe }} > app/src/main/resources/versionnumber.txt
